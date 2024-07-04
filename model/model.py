@@ -1,3 +1,5 @@
+import copy
+
 import networkx as nx
 from database.DAO import DAO
 
@@ -11,6 +13,9 @@ class Model:
         self._idMap = {}
         for v in self._artObjectList:
             self._idMap[v.object_id] = v
+
+        self._solBest = []
+        self._pesoBest = 0
 
     def getConnessa(self, v0int):
         v0 = self._idMap[v0int]
@@ -63,8 +68,48 @@ class Model:
         for e in allEdges:
             self._grafo.add_edge(e.v1, e.v2, weight=e.peso)
 
+    def getBestPath(self, lun, v0):
+        self._solBest = []
+        self._pesoBest = 0
+
+        parziale = [v0]  # il vertice iniziale è v0
+
+        for v in self._grafo.neighbors(v0):  # ciclo sui vicini di v0
+            if v.classification == v0.classification:
+                parziale.append(v)
+                self.ricorsione(parziale, lun)
+                parziale.pop()
+
+        return self._solBest, self._pesoBest
+
+    def ricorsione(self, parziale, lun):
+        # Controllo se parziale è una sol valida, e in caso se è migliore del best
+        if len(parziale) == lun:
+            if self.peso(parziale) > self._pesoBest:
+                self._pesoBest = self.peso(parziale)
+                self._solBest = copy.deepcopy(parziale)
+            return
+
+        # Se arrivo qui, allora len(parziale) < lun, quindi devo continuare ad aggiungere
+        for v in self._grafo.neighbors(parziale[-1]):
+            # v lo aggiungo se non è già in parziale e se ha la stessa classification di v0
+            if v.classification == parziale[-1].classification and v not in parziale:
+            #  controllo che la classification sia la stessa e che v non sia già stato aggiunto
+                parziale.append(v)
+                self.ricorsione(parziale, lun)
+                parziale.pop()
+
+    def peso(self, listObject):  # Calcola il peso totale della lista di nodi vicini
+        p = 0
+        for i in range(0, len(listObject)-1):
+            p += self._grafo[listObject[i]][listObject[i+1]]["weight"]
+        return p
+
     def checkExistence(self, idOggetto):
         return idOggetto in self._idMap  # -> ritorna true se idOggetto è una chiave della mappa
+
+    def getObjectFromId(self, idOggetto):  # -> prendo l'id dell'oggetto e mi ritorna l'oggetto
+        return self._idMap[idOggetto]
 
     def getNumNodes(self):
         return len(self._grafo.nodes)
